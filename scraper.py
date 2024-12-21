@@ -135,7 +135,7 @@ async def fetch_game_details(session, game_url, semaphore):
     download_links = []
     for tag in soup.find_all('a', href=True):
         href = tag['href']
-        if "1fichier.com" in href or "qiwi.gg" in href or "gofile.io" in href:
+        if "1fichier.com" in href or "qiwi.gg" in href or "pixeldrain.com" in href or "gofile.io" in href:
             download_links.append(href)
 
     return title, size, download_links, upload_date
