@@ -36,7 +36,7 @@ CATEGORY_BASE_URLS = [
     "https://repack-games.com/category/sci-fi-games/"
 ]
 JSON_FILENAME = "all_games_data.json"
-MAX_GAMES = 200
+MAX_GAMES = 99999
 CONCURRENT_REQUESTS = 100
 MAX_PAGES_CONCURRENT = 80
 
@@ -132,13 +132,38 @@ async def fetch_game_details(session, game_url, semaphore):
     else:
         upload_date = None
 
-    download_links = []
+    # Coletar e filtrar links por fonte
+    all_links = []
     for tag in soup.find_all('a', href=True):
         href = tag['href']
-        if "1fichier.com" in href or "qiwi.gg" in href or "pixeldrain.com" in href or "gofile.io" in href:
-            download_links.append(href)
+        if any(domain in href for domain in ["1fichier.com", "qiwi.gg", "pixeldrain.com", "gofile.io"]):
+            all_links.append(href)
+
+    # Filtrar para manter apenas um link por fonte
+    filtered_links = {}
+    for link in all_links:
+        domain = None
+        if "1fichier.com" in link:
+            domain = "1fichier"
+        elif "qiwi.gg" in link:
+            domain = "qiwi"
+        elif "pixeldrain.com" in link:
+            domain = "pixeldrain"
+        elif "gofile.io" in link:
+            domain = "gofile"
+        
+        if domain and domain not in filtered_links:
+            filtered_links[domain] = link
+
+    # Obter os links finais filtrados
+    download_links = list(filtered_links.values())
+
+    # Se todos os links forem apenas do 1fichier, ignorar
+    if len(download_links) == 1 and "1fichier.com" in download_links[0]:
+        return title, size, [], upload_date
 
     return title, size, download_links, upload_date
+
 
 async def fetch_last_page_num(session, category_url, semaphore):
     page_content = await fetch_page(session, category_url, semaphore)
@@ -172,6 +197,10 @@ async def process_page(session, page_url, semaphore, existing_data, category, pa
         if isinstance(game, Exception):
             continue
 
+        if processed_games_count >= MAX_GAMES:
+            # Parar o processamento de novos jogos se o limite for atingido
+            break
+
         title, size, links, upload_date = game
         if not links:
             log_game_status("NO_LINKS", category, page_num, title)
@@ -198,7 +227,7 @@ async def process_page(session, page_url, semaphore, existing_data, category, pa
                 "uploadDate": upload_date
             })
             log_game_status("NEW", category, page_num, title)
-            processed_games_count += 1
+
 
 async def process_category(session, category_url, semaphore, existing_data):
     last_page_num = await fetch_last_page_num(session, category_url, semaphore)
@@ -214,15 +243,19 @@ async def process_category(session, category_url, semaphore, existing_data):
         await asyncio.gather(*tasks[i:i + MAX_PAGES_CONCURRENT])
 
 async def scrape_games():
+    global processed_games_count
     semaphore = asyncio.Semaphore(CONCURRENT_REQUESTS)
     existing_data = load_existing_data(JSON_FILENAME)
 
     async with aiohttp.ClientSession() as session:
-        tasks = [process_category(session, url, semaphore, existing_data) for url in CATEGORY_BASE_URLS]
-        await asyncio.gather(*tasks)
+        for url in CATEGORY_BASE_URLS:
+            if processed_games_count >= MAX_GAMES:
+                print(f"Limite de {MAX_GAMES} jogos atingido. Encerrando o scraping.")
+                break  # Interrompe o processamento de novas categorias
+            await process_category(session, url, semaphore, existing_data)
 
     save_data(JSON_FILENAME, existing_data)
-    print(f"Total games processed: {processed_games_count}")
+    print(f"Scraping finalizado. Total de jogos processados: {processed_games_count}")
 
 if __name__ == "__main__":
     asyncio.run(scrape_games())
