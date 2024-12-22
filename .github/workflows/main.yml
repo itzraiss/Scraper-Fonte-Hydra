@@ -1,0 +1,36 @@
+name: Run Python Scraper
+
+on:
+  workflow_dispatch: # Permite iniciar o workflow manualmente
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout do código do repositório
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Configurar Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9  # Versão do Python que você está usando
+
+    # Instalar dependências
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt  # Instala dependências do arquivo requirements.txt
+
+    # Executar o script
+    - name: Run scraper script
+      run: python scraper.py
+
+    # Fazer upload do arquivo gerado
+    - name: Upload all_games_data.json
+      uses: actions/upload-artifact@v3
+      with:
+        name: all_games_data
+        path: all_games_data.json
