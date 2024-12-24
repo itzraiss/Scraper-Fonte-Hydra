@@ -12,43 +12,21 @@ init(autoreset=True)
 
 # Configurações gerais
 BASE_URL = "https://repack-games.com/category/latest-updates/"
-CATEGORY_BASE_URLS = [
-    "https://repack-games.com/category/latest-updates/",
-    "https://repack-games.com/category/action-games/",
-    "https://repack-games.com/category/anime-games/",
-    "https://repack-games.com/category/adventure-games/",
-    "https://repack-games.com/category/building-games/",
-    "https://repack-games.com/category/exploration/",
-    "https://repack-games.com/category/multiplayer-games/",
-    "https://repack-games.com/category/open-world-game/",
-    "https://repack-games.com/category/vr-games/",
-    "https://repack-games.com/category/fighting-games/",
-    "https://repack-games.com/category/adult/",
-    "https://repack-games.com/category/horror-games/",
-    "https://repack-games.com/category/racing-game/",
-    "https://repack-games.com/category/shooting-games/",
-    "https://repack-games.com/category/rpg-pc-games/",
-    "https://repack-games.com/category/puzzle/",
-    "https://repack-games.com/category/sport-game/",
-    "https://repack-games.com/category/survival-games/",
-    "https://repack-games.com/category/simulation-game/",
-    "https://repack-games.com/category/strategy-games/",
-    "https://repack-games.com/category/sci-fi-games/"
-]
 JSON_FILENAME = "all_games_data.json"
-MAX_GAMES = 99999
+MAX_GAMES = 999999
 CONCURRENT_REQUESTS = 100
-MAX_PAGES_CONCURRENT = 80
 
 processed_games_count = 0
 
 # Constante para a regex
 REGEX_TITULO = r"(?:\(.*?\)|\s*(Free Download|v\d+(\.\d+)*[a-zA-Z0-9\-]*|Build \d+|P2P|GOG|Repack|Edition.*|FLT|TENOKE)\s*)"
 
+
 def normalizar_titulo(titulo):
     """Remove informações irrelevantes do título do jogo."""
     titulo_normalizado = re.sub(REGEX_TITULO, "", titulo)
     return titulo_normalizado.strip()
+
 
 def load_existing_data(json_filename):
     try:
@@ -57,9 +35,11 @@ def load_existing_data(json_filename):
     except (FileNotFoundError, json.JSONDecodeError):
         return {"name": "Shisuy's source [repack-games]", "downloads": []}
 
+
 def save_data(json_filename, data):
     with open(json_filename, "w", encoding="utf-8") as json_file:
         json.dump(data, json_file, ensure_ascii=False, indent=4)
+
 
 def parse_relative_date(date_str):
     now = datetime.now()
@@ -81,17 +61,19 @@ def parse_relative_date(date_str):
     except Exception:
         return now.isoformat()
 
-def log_game_status(status, category, page, game_title):
+
+def log_game_status(status, page, game_title):
     global processed_games_count
     if status == "NEW":
         processed_games_count += 1
-        print(f"{Fore.GREEN}[NEW GAME] {category} - Page {page}: {game_title} - Games Processed: {processed_games_count}")
+        print(f"{Fore.GREEN}[NEW GAME] Page {page}: {game_title} - Games Processed: {processed_games_count}")
     elif status == "UPDATED":
-        print(f"{Fore.YELLOW}[UPDATED] {category} - Page {page}: {game_title}")
+        print(f"{Fore.YELLOW}[UPDATED] Page {page}: {game_title}")
     elif status == "IGNORED":
-        print(f"{Fore.CYAN}[IGNORED] {category} - Page {page}: {game_title}")
+        print(f"{Fore.CYAN}[IGNORED] Page {page}: {game_title}")
     elif status == "NO_LINKS":
-        print(f"{Fore.RED}[NO LINKS] {category} - Page {page}: {game_title}")
+        print(f"{Fore.RED}[NO LINKS] Page {page}: {game_title}")
+
 
 async def fetch_page(session, url, semaphore):
     async with semaphore:
@@ -102,6 +84,7 @@ async def fetch_page(session, url, semaphore):
                 return await response.text() if response.status == 200 else None
         except Exception:
             return None
+
 
 async def fetch_game_details(session, game_url, semaphore):
     page_content = await fetch_page(session, game_url, semaphore)
@@ -132,14 +115,12 @@ async def fetch_game_details(session, game_url, semaphore):
     else:
         upload_date = None
 
-    # Coletar e filtrar links por fonte
     all_links = []
     for tag in soup.find_all('a', href=True):
         href = tag['href']
         if any(domain in href for domain in ["1fichier.com", "qiwi.gg", "pixeldrain.com", "gofile.io"]):
             all_links.append(href)
 
-    # Filtrar para manter apenas um link por fonte
     filtered_links = {}
     for link in all_links:
         domain = None
@@ -151,22 +132,20 @@ async def fetch_game_details(session, game_url, semaphore):
             domain = "pixeldrain"
         elif "gofile.io" in link:
             domain = "gofile"
-        
+
         if domain and domain not in filtered_links:
             filtered_links[domain] = link
 
-    # Obter os links finais filtrados
     download_links = list(filtered_links.values())
 
-    # Se todos os links forem apenas do 1fichier, ignorar
     if len(download_links) == 1 and "1fichier.com" in download_links[0]:
         return title, size, [], upload_date
 
     return title, size, download_links, upload_date
 
 
-async def fetch_last_page_num(session, category_url, semaphore):
-    page_content = await fetch_page(session, category_url, semaphore)
+async def fetch_last_page_num(session, semaphore):
+    page_content = await fetch_page(session, BASE_URL, semaphore)
     if not page_content:
         return 1
 
@@ -178,7 +157,8 @@ async def fetch_last_page_num(session, category_url, semaphore):
             return int(match.group(1))
     return 1
 
-async def process_page(session, page_url, semaphore, existing_data, category, page_num):
+
+async def process_page(session, page_url, semaphore, existing_data, page_num):
     global processed_games_count
     page_content = await fetch_page(session, page_url, semaphore)
     if not page_content:
@@ -187,23 +167,24 @@ async def process_page(session, page_url, semaphore, existing_data, category, pa
     soup = BeautifulSoup(page_content, 'html.parser')
     articles = soup.find_all('div', class_='articles-content')
 
-    tasks = [
-        fetch_game_details(session, li.find('a')['href'], semaphore)
-        for article in articles
-        for li in article.find_all('li') if li.find('a', href=True)
-    ]
+    tasks = []
+    for article in articles:
+        for li in article.find_all('li'):
+            a_tag = li.find('a', href=True)
+            if a_tag and 'href' in a_tag.attrs:
+                tasks.append(fetch_game_details(session, a_tag['href'], semaphore))
+
     games = await asyncio.gather(*tasks, return_exceptions=True)
     for game in games:
         if isinstance(game, Exception):
             continue
 
         if processed_games_count >= MAX_GAMES:
-            # Parar o processamento de novos jogos se o limite for atingido
             break
 
         title, size, links, upload_date = game
         if not links:
-            log_game_status("NO_LINKS", category, page_num, title)
+            log_game_status("NO_LINKS", page_num, title)
             continue
 
         title_normalized = normalizar_titulo(title)
@@ -216,9 +197,9 @@ async def process_page(session, page_url, semaphore, existing_data, category, pa
                     "fileSize": size,
                     "uploadDate": upload_date
                 })
-                log_game_status("UPDATED", category, page_num, title)
+                log_game_status("UPDATED", page_num, title)
             else:
-                log_game_status("IGNORED", category, page_num, title)
+                log_game_status("IGNORED", page_num, title)
         else:
             existing_data["downloads"].append({
                 "title": title,
@@ -226,21 +207,8 @@ async def process_page(session, page_url, semaphore, existing_data, category, pa
                 "fileSize": size,
                 "uploadDate": upload_date
             })
-            log_game_status("NEW", category, page_num, title)
+            log_game_status("NEW", page_num, title)
 
-
-async def process_category(session, category_url, semaphore, existing_data):
-    last_page_num = await fetch_last_page_num(session, category_url, semaphore)
-
-    tasks = []
-    for page_num in range(1, last_page_num + 1):
-        if processed_games_count >= MAX_GAMES:
-            break
-        page_url = f"{category_url}/page/{page_num}"
-        tasks.append(process_page(session, page_url, semaphore, existing_data, category_url, page_num))
-
-    for i in range(0, len(tasks), MAX_PAGES_CONCURRENT):
-        await asyncio.gather(*tasks[i:i + MAX_PAGES_CONCURRENT])
 
 async def scrape_games():
     global processed_games_count
@@ -248,14 +216,18 @@ async def scrape_games():
     existing_data = load_existing_data(JSON_FILENAME)
 
     async with aiohttp.ClientSession() as session:
-        for url in CATEGORY_BASE_URLS:
+        last_page_num = await fetch_last_page_num(session, semaphore)
+
+        for page_num in range(1, last_page_num + 1):
             if processed_games_count >= MAX_GAMES:
                 print(f"Limite de {MAX_GAMES} jogos atingido. Encerrando o scraping.")
-                break  # Interrompe o processamento de novas categorias
-            await process_category(session, url, semaphore, existing_data)
+                break
+            page_url = f"{BASE_URL}/page/{page_num}"
+            await process_page(session, page_url, semaphore, existing_data, page_num)
 
     save_data(JSON_FILENAME, existing_data)
     print(f"Scraping finalizado. Total de jogos processados: {processed_games_count}")
+
 
 if __name__ == "__main__":
     asyncio.run(scrape_games())
