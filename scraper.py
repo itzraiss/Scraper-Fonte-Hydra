@@ -16,7 +16,7 @@ BASE_URLS = ["https://repack-games.com/category/" + url for url in [
     "simulation-game/", "strategy-games/", "sci-fi-games/", "adult/"
 ]]
 
-JSON_FILENAME = "source.json"
+JSON_FILENAME = "shisuyssource.json"
 INVALID_JSON_FILENAME = "invalid_games.json"
 MAX_GAMES = 999999
 CONCURRENT_REQUESTS = 100

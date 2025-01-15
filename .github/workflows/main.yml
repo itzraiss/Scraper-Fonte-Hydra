@@ -2,6 +2,8 @@ name: Run Python Scraper
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   run-scraper:
@@ -28,11 +30,30 @@ jobs:
       run: python scraper.py
       continue-on-error: true
 
-    - name: Upload source.json
+    - name: Checkout target repository
+      uses: actions/checkout@v3
+      with:
+        repository: Shisuiicaro/source
+        path: target-repo
+        token: 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
+      continue-on-error: true
+
+    - name: Copy and commit files
+      run: |
+        cp shisuyssource.json target-repo/
+        cd target-repo
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
+        git add shisuyssource.json
+        git commit -m "Update shisuyssource.json [skip ci]"
+        git push
+      continue-on-error: true
+
+    - name: Upload shisuyssource.json
       uses: actions/upload-artifact@v3
       with:
-        name: source_json
-        path: source.json
+        name: shisuyssource_json
+        path: shisuyssource.json
       continue-on-error: true
 
     - name: Upload invalid_games.json
@@ -48,6 +69,6 @@ jobs:
       with:
         name: all_files
         path: |
-          source.json
+          shisuyssource.json
           invalid_games.json
       continue-on-error: true
