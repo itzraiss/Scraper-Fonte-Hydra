@@ -18,7 +18,7 @@ BASE_URLS = ["https://repack-games.com/category/" + url for url in [
 
 JSON_FILENAME = "source.json"
 INVALID_JSON_FILENAME = "invalid_games.json"
-MAX_GAMES = 100
+MAX_GAMES = 999999
 CONCURRENT_REQUESTS = 100
 REGEX_TITLE = r"(?:\(.*?\)|\s*(Free Download|v\d+(\.\d+)*[a-zA-Z0-9\-]*|Build \d+|P2P|GOG|Repack|Edition.*|FLT|TENOKE)\s*)"
 HEADERS = {
