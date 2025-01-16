@@ -35,7 +35,7 @@ jobs:
       with:
         repository: Shisuiicaro/source
         path: target-repo
-        token: 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
+        token: ${{ secrets.GH_TOKEN }}
       continue-on-error: true
 
     - name: Copy and commit files
